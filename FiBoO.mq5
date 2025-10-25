@@ -26,7 +26,7 @@ input ENUM_CALC_MODE InpCalculationMode = CALC_AUTO;       // Calculation Mode
 input int            InpManualStopLoss = 30000;            // Manual StopLoss (Points)
 input int            InpManualBreakout = 10000;            // Manual Breakout (Points)
 input int            InpATRPeriod = 78;                    // ATR Period (Candles)
-input double         InpSLMultiplier = 0.7;                // SL Multiplier
+input double         InpSLMultiplier = 1.0;                // SL Multiplier
 
 //+------------------------------------------------------------------+
 //| Input Parameters - Highlight Settings                            |
@@ -34,22 +34,22 @@ input double         InpSLMultiplier = 0.7;                // SL Multiplier
 input group "=== Highlight Settings ==="
 input int            InpHighlightCandlesBefore = 1;        // Highlight Candles Before
 input int            InpHighlightCandlesAfter = 1;         // Highlight Candles After
-input color          InpHighlightColor = 55295;            // Highlight Color
+input color          InpHighlightColor = 10288896;         // Highlight Color
 
 //+------------------------------------------------------------------+
 //| Input Parameters - High Line Settings                            |
 //+------------------------------------------------------------------+
 input group "=== High Line Settings ==="
-input color          InpHighLineColor = 255;               // High Line Color
-input int            InpHighLineWidth = 2;                 // High Line Width
+input color          InpHighLineColor = 5573631;           // High Line Color
+input int            InpHighLineWidth = 1;                 // High Line Width
 input ENUM_LINE_STYLE InpHighLineStyle = STYLE_SOLID;      // High Line Style
 
 //+------------------------------------------------------------------+
 //| Input Parameters - Low Line Settings                             |
 //+------------------------------------------------------------------+
 input group "=== Low Line Settings ==="
-input color          InpLowLineColor = 16711680;            // Low Line Color
-input int            InpLowLineWidth = 2;                  // Low Line Width
+input color          InpLowLineColor = 51976;               // Low Line Color
+input int            InpLowLineWidth = 1;                  // Low Line Width
 input ENUM_LINE_STYLE InpLowLineStyle = STYLE_SOLID;       // Low Line Style
 
 //+------------------------------------------------------------------+
@@ -63,19 +63,19 @@ input int            InpMagnetCandleRange = 3;             // Magnet Candle Rang
 //+------------------------------------------------------------------+
 input group "=== Auto-Detection: Unmitigated Levels ==="
 input bool           InpEnableAutoDetection = false;       // Enable Auto-Detection
-input int            InpSwingLeftBars = 5;                 // Swing Left Bars
-input int            InpSwingRightBars = 2;                // Swing Right Bars
+input int            InpSwingLeftBars = 1;                 // Swing Left Bars
+input int            InpSwingRightBars = 1;                // Swing Right Bars
 input int            InpLookbackCandles = 200;             // Lookback Candles
-input int            InpMinSwingDistance = 100;            // Min Distance Between Swings (Points)
+input int            InpMinSwingDistance = 1;              // Min Distance Between Swings (Points)
 
 //+------------------------------------------------------------------+
 //| Input Parameters - Fibonacci Settings                            |
 //+------------------------------------------------------------------+
 input group "=== Fibonacci Settings ==="
-input color          InpFiboLineColorBuy = 32768;          // Fibo Line Color (Buy)
-input color          InpFiboLineColorSell = 255;           // Fibo Line Color (Sell)
-input color          InpFiboLineColorRecoveryBuy = 255;    // Recovery Fibo Color (Buy becomes Sell)
-input color          InpFiboLineColorRecoverySell = 32768; // Recovery Fibo Color (Sell becomes Buy)
+input color          InpFiboLineColorBuy = 51976;          // Fibo Line Color (Buy)
+input color          InpFiboLineColorSell = 5573631;       // Fibo Line Color (Sell)
+input color          InpFiboLineColorRecoveryBuy = 5573631;// Recovery Fibo Color (Buy becomes Sell)
+input color          InpFiboLineColorRecoverySell = 51976; // Recovery Fibo Color (Sell becomes Buy)
 input int            InpFiboLength = 5;                    // Fibo Length (Candles)
 input int            InpFiboFirstOffset = 1;               // First Fibo Offset (Candles)
 input int            InpFiboSubsequentOffset = 5;          // Subsequent Fibo Offset (Candles)
@@ -126,16 +126,16 @@ input bool           InpUseSpread = true;                    // Use Spread for E
 //| Input Parameters - Timer Settings                                |
 //+------------------------------------------------------------------+
 input group "=== Timer Settings ==="
-input bool           InpEnableTimer = false;               // Enable Timer
+input bool           InpEnableTimer = true;                // Enable Timer
 input int            InpTimerDuration = 40;                // Timer Duration (Seconds)
-input ENUM_BASE_CORNER InpTimerCorner = CORNER_LEFT_UPPER; // Timer Anchor Corner
-input int            InpTimerX = 100;                      // Timer X Position
-input int            InpTimerY = 100;                      // Timer Y Position
-input int            InpTimerFontSize = 30;                // Timer Font Size (Icon + Number)
-input color          InpTimerColorDefault = clrGray;       // Timer Color (Default)
-input color          InpTimerColorArmed = clrGoldenrod;    // Timer Color (Armed)
-input color          InpTimerColorActiveHigh = clrRed;     // Timer Color (Active > 10s)
-input color          InpTimerColorActiveLow = clrLimeGreen;// Timer Color (Active <= 10s)
+input ENUM_BASE_CORNER InpTimerCorner = CORNER_RIGHT_LOWER;// Timer Anchor Corner
+input int            InpTimerX = 68;                       // Timer X Position
+input int            InpTimerY = 612;                      // Timer Y Position
+input int            InpTimerFontSize = 15;                // Timer Font Size (Icon + Number)
+input color          InpTimerColorDefault = 4737096;       // Timer Color (Default)
+input color          InpTimerColorArmed = 45055;           // Timer Color (Armed)
+input color          InpTimerColorActiveHigh = 5573631;    // Timer Color (Active > 10s)
+input color          InpTimerColorActiveLow = 51976;       // Timer Color (Active <= 10s)
 
 //+------------------------------------------------------------------+
 //| Input Parameters - Timeframe Warning                             |
@@ -144,10 +144,10 @@ input group "=== Timeframe Warning Settings ==="
 input bool           InpEnableTimeframeWarning = true;     // Enable Timeframe Warning
 input ENUM_TIMEFRAMES InpWarningTimeframe = PERIOD_M5;     // Warning Timeframe
 input string         InpWarningText = "WARNING: Timeframe is not M5!"; // Warning Text
-input int            InpWarningX = 10;                     // Warning X Position
-input int            InpWarningY = 10;                     // Warning Y Position
-input int            InpWarningFontSize = 14;              // Warning Font Size
-input color          InpWarningColor = clrRed;             // Warning Font Color
+input int            InpWarningX = 40;                     // Warning X Position
+input int            InpWarningY = 40;                     // Warning Y Position
+input int            InpWarningFontSize = 10;              // Warning Font Size
+input color          InpWarningColor = 5573631;            // Warning Font Color
 
 //+------------------------------------------------------------------+
 //| Input Parameters - Symbol Warning (NEW)                          |
@@ -156,10 +156,10 @@ input group "=== Symbol Warning Settings ==="
 input bool           InpEnableSymbolWarning = true;        // Enable Symbol Warning
 input string         InpWarningSymbol = "US30";            // Warning Symbol (e.g., US30, GDAXI, NAS100)
 input string         InpSymbolWarningText = "WARNING: Symbol is not US30!"; // Symbol Warning Text
-input int            InpSymbolWarningX = 10;               // Symbol Warning X Position
-input int            InpSymbolWarningY = 25;               // Symbol Warning Y Position (below timeframe warning)
-input int            InpSymbolWarningFontSize = 14;        // Symbol Warning Font Size
-input color          InpSymbolWarningColor = clrRed;       // Symbol Warning Font Color
+input int            InpSymbolWarningX = 40;               // Symbol Warning X Position
+input int            InpSymbolWarningY = 70;               // Symbol Warning Y Position (below timeframe warning)
+input int            InpSymbolWarningFontSize = 10;        // Symbol Warning Font Size
+input color          InpSymbolWarningColor = 5573631;      // Symbol Warning Font Color
 
 //+------------------------------------------------------------------+
 //| Input Parameters - Motivational Alert Settings (NEW)             |
@@ -174,27 +174,27 @@ input string         InpAlertTextLoss = "🥇 مدال انضباط برای ت�
 //| Input Parameters - UI Panel Settings                             |
 //+------------------------------------------------------------------+
 input group "=== UI Panel Settings ==="
-input ENUM_BASE_CORNER InpPanelCorner = CORNER_RIGHT_UPPER; // Panel Anchor Corner
-input int            InpPanelPaddingX = 50;                // Panel Padding X (from corner)
-input int            InpPanelPaddingY = 40;                // Panel Padding Y (from corner)
-input int            InpButtonWidth = 150;                 // Button Width
-input int            InpButtonHeight = 30;                 // Button Height
+input ENUM_BASE_CORNER InpPanelCorner = CORNER_RIGHT_LOWER; // Panel Anchor Corner
+input int            InpPanelPaddingX = 125;               // Panel Padding X (from corner)
+input int            InpPanelPaddingY = 450;               // Panel Padding Y (from corner)
+input int            InpButtonWidth = 100;                 // Button Width
+input int            InpButtonHeight = 35;                 // Button Height
 input int            InpButtonSpacingH = 5;                // Button Horizontal Spacing
 input int            InpButtonSpacingV = 5;                // Button Vertical Spacing
-input color          InpButtonColorNormal = clrDarkGray;   // Button Color (Normal)
-input color          InpButtonColorPressed = clrGreen;     // Button Color (Pressed)
-input color          InpButtonColorActive = 55295;         // Button Color (Active)
-input color          InpButtonTextColor = clrWhite;        // Button Text Color
+input color          InpButtonColorNormal = 4737096;       // Button Color (Normal)
+input color          InpButtonColorPressed = 16777215;     // Button Color (Pressed)
+input color          InpButtonColorActive = 16766720;      // Button Color (Active)
+input color          InpButtonTextColor = 16777215;        // Button Text Color
 input int            InpButtonFontSize = 8;                // Button Font Size
 
 //+------------------------------------------------------------------+
 //| Input Parameters - Display Text Settings                         |
 //+------------------------------------------------------------------+
 input group "=== Display Text Settings ==="
-input ENUM_BASE_CORNER InpTextCorner = CORNER_LEFT_UPPER;  // Text Anchor Corner
-input int            InpTextX = 10;                        // Text X Position
-input int            InpTextY = 40;                        // Text Y Position
-input color          InpTextColor = clrBlack;              // Text Color
+input ENUM_BASE_CORNER InpTextCorner = CORNER_RIGHT_LOWER; // Text Anchor Corner
+input int            InpTextX = 230;                       // Text X Position
+input int            InpTextY = 616;                       // Text Y Position
+input color          InpTextColor = 4737096;               // Text Color
 input int            InpTextFontSize = 8;                  // Text Font Size
 
 //+------------------------------------------------------------------+
