@@ -207,7 +207,6 @@ string g_btnBuyFibo = "FBO_BTN_BUY_FIBO";
 string g_btnSellFibo = "FBO_BTN_SELL_FIBO";
 string g_btnStart = "FBO_BTN_START";
 string g_btnUndo = "FBO_BTN_UNDO";
-string g_btnClean = "FBO_BTN_CLEAN";
 string g_btnReset = "FBO_BTN_RESET";
 string g_btnAutoDetect = "FBO_BTN_AUTO_DETECT";
 // UI Label Names
@@ -499,19 +498,15 @@ void CreateUIPanel()
    CreateButton(g_btnLow, "Low", col1X, row2Y, w, h, InpPanelCorner);
    CreateButton(g_btnBuyFibo, "B.Fibo", col2X, row2Y, w, h, InpPanelCorner);
 
-   // Row 3: Start | Reset
+   // Row 3: Start | LHD (Auto-Detect)
    int row3Y = row2Y + h + spacingV;
    CreateButton(g_btnStart, "Start", col1X, row3Y, w, h, InpPanelCorner);
-   CreateButton(g_btnReset, "Reset", col2X, row3Y, w, h, InpPanelCorner);
+   CreateButton(g_btnAutoDetect, "LHD", col2X, row3Y, w, h, InpPanelCorner);
 
-   // Row 4: Undo | Clean
+   // Row 4: Undo | Reset
    int row4Y = row3Y + h + spacingV;
    CreateButton(g_btnUndo, "Undo", col1X, row4Y, w, h, InpPanelCorner);
-   CreateButton(g_btnClean, "Clean", col2X, row4Y, w, h, InpPanelCorner);
-
-   // Row 5: Auto-Detect
-   int row5Y = row4Y + h + spacingV;
-   CreateButton(g_btnAutoDetect, "Auto-Detect", col1X, row5Y, w * 2 + spacingH, h, InpPanelCorner);
+   CreateButton(g_btnReset, "Reset", col2X, row4Y, w, h, InpPanelCorner);
 
    ChartRedraw();
 }
@@ -527,7 +522,6 @@ void DeleteUIPanel()
    ObjectDelete(0, g_btnSellFibo);
    ObjectDelete(0, g_btnStart);
    ObjectDelete(0, g_btnUndo);
-   ObjectDelete(0, g_btnClean);
    ObjectDelete(0, g_btnReset);
    ObjectDelete(0, g_btnAutoDetect);
    ObjectDelete(0, g_lblStopLoss);
@@ -665,15 +659,6 @@ void HandleButtonClick(string clickedObject)
    {
       ObjectSetInteger(0, g_btnUndo, OBJPROP_STATE, false);
       UndoLastLine();
-   }
-   // Clean button
-   else if(clickedObject == g_btnClean)
-   {
-      ObjectSetInteger(0, g_btnClean, OBJPROP_STATE, false);
-      // *** CHANGED (v2.03): Super-Clean now cleans ALL lines/boxes/fibos ***
-      CleanAllLines();
-      CleanAllBoxes();
-      CleanAllFibos();
    }
    // Reset button
    else if(clickedObject == g_btnReset)
@@ -909,14 +894,64 @@ void ResetAutoMode()
 }
 
 //+------------------------------------------------------------------+
+//| Delete ALL Chart Objects (Complete Reset)                        |
+//+------------------------------------------------------------------+
+void DeleteAllChartObjects()
+{
+   // Delete ALL Horizontal Lines
+   for(int i = ObjectsTotal(0, 0, OBJ_HLINE) - 1; i >= 0; i--)
+   {
+      string name = ObjectName(0, i, 0, OBJ_HLINE);
+      ObjectDelete(0, name);
+   }
+
+   // Delete ALL Trend Lines
+   for(int i = ObjectsTotal(0, 0, OBJ_TREND) - 1; i >= 0; i--)
+   {
+      string name = ObjectName(0, i, 0, OBJ_TREND);
+      ObjectDelete(0, name);
+   }
+
+   // Delete ALL Vertical Lines
+   for(int i = ObjectsTotal(0, 0, OBJ_VLINE) - 1; i >= 0; i--)
+   {
+      string name = ObjectName(0, i, 0, OBJ_VLINE);
+      ObjectDelete(0, name);
+   }
+
+   // Delete ALL Rectangles/Boxes
+   for(int i = ObjectsTotal(0, 0, OBJ_RECTANGLE) - 1; i >= 0; i--)
+   {
+      string name = ObjectName(0, i, 0, OBJ_RECTANGLE);
+      ObjectDelete(0, name);
+   }
+
+   // Delete ALL Fibonacci Retracements
+   for(int i = ObjectsTotal(0, 0, OBJ_FIBO) - 1; i >= 0; i--)
+   {
+      string name = ObjectName(0, i, 0, OBJ_FIBO);
+      ObjectDelete(0, name);
+   }
+
+   // Reset line history
+   ArrayResize(g_lineHistory, 0);
+   g_lineHistoryCount = 0;
+
+   // Reset manual fibo tracking
+   ResetManualFiboTracking();
+}
+
+//+------------------------------------------------------------------+
 //| Reset Entire Indicator                                           |
 //+------------------------------------------------------------------+
 void ResetIndicator()
 {
-   // Clean all objects (including manual lines)
-   CleanAllObjects();
+   // Delete ALL objects on chart (not just FBO_* ones)
+   DeleteAllChartObjects();
+
    // Reset auto mode (resets state, timer, fibo tracking, line memory)
    ResetAutoMode();
+
    // Reset button states
    g_isHighActive = false;
    g_isLowActive = false;
@@ -936,12 +971,12 @@ void ResetIndicator()
    UpdateButtonState(g_btnAutoDetect, false);
 
    ObjectSetInteger(0, g_btnReset, OBJPROP_BGCOLOR, InpButtonColorNormal);
+
    // Reset counters
    g_lineCounter = 0;
    g_boxCounter = 0;
    g_fiboCounter = 0;
-   // Manual fibo tracking is reset inside CleanAllFibos()
-   
+
    ChartRedraw();
 }
 
