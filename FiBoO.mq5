@@ -323,7 +323,6 @@ void ShowAlertMessage(int type);
 void DetectUnmitigatedLevels();
 bool IsSwingHigh(int bar);
 bool IsSwingLow(int bar);
-bool DidBreakPreviousLevel(int swingBar, bool isHigh);
 bool IsUnmitigated(double price, bool isHigh, int fromBar);
 
 
@@ -2170,28 +2169,24 @@ void DetectUnmitigatedLevels()
       if(IsSwingHigh(i))
       {
          double swingPrice = iHigh(_Symbol, _Period, i);
-         
-         // Check if this swing broke a previous level
-         if(DidBreakPreviousLevel(i, true))
+
+         // Check if unmitigated (price hasn't crossed back)
+         if(IsUnmitigated(swingPrice, true, i))
          {
-            // Check if unmitigated (price hasn't crossed back)
-            if(IsUnmitigated(swingPrice, true, i))
-            {
-               // Draw line
-               datetime swingTime = iTime(_Symbol, _Period, i);
-               string lineName = g_autoLinePrefix + "HIGH_" + IntegerToString(i);
-               
-               ObjectCreate(0, lineName, OBJ_HLINE, 0, swingTime, swingPrice);
-               ObjectSetInteger(0, lineName, OBJPROP_COLOR, InpHighLineColor);
-               ObjectSetInteger(0, lineName, OBJPROP_WIDTH, InpHighLineWidth);
-               ObjectSetInteger(0, lineName, OBJPROP_STYLE, InpHighLineStyle);
-               ObjectSetInteger(0, lineName, OBJPROP_BACK, false);
-               ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, true);
-               ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, true);
-               
-               ArrayResize(g_lineHistory, g_lineHistoryCount + 1);
-               g_lineHistory[g_lineHistoryCount++] = lineName;
-            }
+            // Draw line
+            datetime swingTime = iTime(_Symbol, _Period, i);
+            string lineName = g_autoLinePrefix + "HIGH_" + IntegerToString(i);
+
+            ObjectCreate(0, lineName, OBJ_HLINE, 0, swingTime, swingPrice);
+            ObjectSetInteger(0, lineName, OBJPROP_COLOR, InpHighLineColor);
+            ObjectSetInteger(0, lineName, OBJPROP_WIDTH, InpHighLineWidth);
+            ObjectSetInteger(0, lineName, OBJPROP_STYLE, InpHighLineStyle);
+            ObjectSetInteger(0, lineName, OBJPROP_BACK, false);
+            ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, true);
+            ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, true);
+
+            ArrayResize(g_lineHistory, g_lineHistoryCount + 1);
+            g_lineHistory[g_lineHistoryCount++] = lineName;
          }
       }
 
@@ -2199,28 +2194,24 @@ void DetectUnmitigatedLevels()
       if(IsSwingLow(i))
       {
          double swingPrice = iLow(_Symbol, _Period, i);
-         
-         // Check if this swing broke a previous level
-         if(DidBreakPreviousLevel(i, false))
+
+         // Check if unmitigated (price hasn't crossed back)
+         if(IsUnmitigated(swingPrice, false, i))
          {
-            // Check if unmitigated (price hasn't crossed back)
-            if(IsUnmitigated(swingPrice, false, i))
-            {
-               // Draw line
-               datetime swingTime = iTime(_Symbol, _Period, i);
-               string lineName = g_autoLinePrefix + "LOW_" + IntegerToString(i);
-               
-               ObjectCreate(0, lineName, OBJ_HLINE, 0, swingTime, swingPrice);
-               ObjectSetInteger(0, lineName, OBJPROP_COLOR, InpLowLineColor);
-               ObjectSetInteger(0, lineName, OBJPROP_WIDTH, InpLowLineWidth);
-               ObjectSetInteger(0, lineName, OBJPROP_STYLE, InpLowLineStyle);
-               ObjectSetInteger(0, lineName, OBJPROP_BACK, false);
-               ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, true);
-               ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, true);
-               
-               ArrayResize(g_lineHistory, g_lineHistoryCount + 1);
-               g_lineHistory[g_lineHistoryCount++] = lineName;
-            }
+            // Draw line
+            datetime swingTime = iTime(_Symbol, _Period, i);
+            string lineName = g_autoLinePrefix + "LOW_" + IntegerToString(i);
+
+            ObjectCreate(0, lineName, OBJ_HLINE, 0, swingTime, swingPrice);
+            ObjectSetInteger(0, lineName, OBJPROP_COLOR, InpLowLineColor);
+            ObjectSetInteger(0, lineName, OBJPROP_WIDTH, InpLowLineWidth);
+            ObjectSetInteger(0, lineName, OBJPROP_STYLE, InpLowLineStyle);
+            ObjectSetInteger(0, lineName, OBJPROP_BACK, false);
+            ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, true);
+            ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, true);
+
+            ArrayResize(g_lineHistory, g_lineHistoryCount + 1);
+            g_lineHistory[g_lineHistoryCount++] = lineName;
          }
       }
    }
@@ -2275,53 +2266,6 @@ bool IsSwingLow(int bar)
    }
    
    return true;
-}
-
-//+------------------------------------------------------------------+
-//| Check if swing broke a previous High/Low level                  |
-//+------------------------------------------------------------------+
-bool DidBreakPreviousLevel(int swingBar, bool isHigh)
-{
-   double swingPrice = isHigh ? iHigh(_Symbol, _Period, swingBar) : iLow(_Symbol, _Period, swingBar);
-   
-   // Look for previous swings of OPPOSITE type that were broken
-   int maxBarsToCheck = MathMin(swingBar + 500, Bars(_Symbol, _Period) - 1);
-   
-   for(int i = swingBar + 1; i < maxBarsToCheck; i++)
-   {
-      bool foundOppositeSwing = false;
-      double oppositePrice = 0;
-      
-      if(isHigh)
-      {
-         // For High swing, look for previous Low swings that were broken
-         if(IsSwingLow(i))
-         {
-            oppositePrice = iLow(_Symbol, _Period, i);
-            foundOppositeSwing = true;
-         }
-      }
-      else
-      {
-         // For Low swing, look for previous High swings that were broken
-         if(IsSwingHigh(i))
-         {
-            oppositePrice = iHigh(_Symbol, _Period, i);
-            foundOppositeSwing = true;
-         }
-      }
-      
-      if(foundOppositeSwing)
-      {
-         // Check if our swing broke this opposite level
-         if(isHigh && swingPrice > oppositePrice)
-            return true; // High swing broke a previous Low
-         if(!isHigh && swingPrice < oppositePrice)
-            return true; // Low swing broke a previous High
-      }
-   }
-   
-   return false;
 }
 
 //+------------------------------------------------------------------+
