@@ -166,9 +166,9 @@ input color          InpSymbolWarningColor = 5573631;      // Symbol Warning Fon
 //+------------------------------------------------------------------+
 input group "=== Motivational Alert Settings ==="
 input bool           InpEnableAlerts = true;               // Enable Motivational Alerts
-input string         InpAlertTextWin = "🔥 بـووووم! شاهکار بود! 🔥|یه اجرای بی‌نقص از ستاپ. ۲٪ سود نوش جونت. کار امروز تمومه، قهرمان! 👑"; // Win Text (use '|' for newline)
-input string         InpAlertTextRecov = "💪 عجب کام‌بکی! 💪|تو بازی رو برگردوندی! روزی که با ضرر شروع شد رو با سود تموم کردی. ۱٪ سود نوش جونت. کار امروز تمومه، قهرمان! 👑"; // Recovery Win Text (use '|' for newline)
-input string         InpAlertTextLoss = "🥇 مدال انضباط برای تو! 🥇|تو کارتو درست انجام دادی. ضررها هزینه موفقیت در آینده‌ان. تا وقتی به سیستم وفاداری، تو در مسیر درستی. امروز بازار برنده شد، اما جنگ بلندمدت مال ماست. کار امروز تمومه، قهرمان! 👑"; // Loss Text (use '|' for newline)
+input string         InpAlertTextWin = "🔥 BOOM!";         // Win Text (use '|' for newline)
+input string         InpAlertTextRecov = "🚀 EPIC RECOVERY!"; // Recovery Win Text (use '|' for newline)
+input string         InpAlertTextLoss = "💎 DISCIPLINE MEDAL! Tomorrow is yours."; // Loss Text (use '|' for newline)
 
 //+------------------------------------------------------------------+
 //| Input Parameters - UI Panel Settings                             |
