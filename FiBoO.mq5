@@ -2330,25 +2330,24 @@ bool DidBreakPreviousLevel(int swingBar, bool isHigh)
 bool IsUnmitigated(double price, bool isHigh, int fromBar)
 {
    double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
-   double tolerance = 5 * point; // Small tolerance
-   
+
    // Check all bars from the swing to current
    for(int i = fromBar - 1; i >= 0; i--)
    {
       if(isHigh)
       {
-         // For High level, check if price went above it
-         if(iHigh(_Symbol, _Period, i) > price + tolerance)
+         // For High level, check if price went above it (even by 1 tick)
+         if(iHigh(_Symbol, _Period, i) > price + point)
             return false; // Level was mitigated (broken)
       }
       else
       {
-         // For Low level, check if price went below it
-         if(iLow(_Symbol, _Period, i) < price - tolerance)
+         // For Low level, check if price went below it (even by 1 tick)
+         if(iLow(_Symbol, _Period, i) < price - point)
             return false; // Level was mitigated (broken)
       }
    }
-   
+
    return true; // Level is still unmitigated
 }
 //+------------------------------------------------------------------+
