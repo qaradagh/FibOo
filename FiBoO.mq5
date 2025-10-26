@@ -93,13 +93,11 @@ input color          InpFiboLineColorRecoverySell = 51976; // Recovery Fibo Colo
 input int            InpFiboLength = 5;                    // Fibo Length (Candles)
 input int            InpFiboFirstOffset = 1;               // First Fibo Offset (Candles)
 input int            InpFiboSubsequentOffset = 5;          // Subsequent Fibo Offset (Candles)
-// *** CHANGED: Removed Active/Inactive style inputs ***
 input bool           InpUpdateFiboLabelsOnSL = true;       // Update Fibo Labels on SL
 
 //+------------------------------------------------------------------+
 //| Input Parameters - Fibo Labels Sell (Initial)                    |
 //+------------------------------------------------------------------+
-// *** NOTE: v2.02 logic - Flipped to match Logic B ***
 input group "=== Fibo Labels Sell (Initial) ==="
 input string         InpFiboSellLevel3Label = "tp";        // Level 3 Label
 input string         InpFiboSellLevel1Label = "entry";     // Level 1 Label
@@ -116,7 +114,6 @@ input string         InpFiboSellLevel0LabelRecov = "rc.sl";  // Level 0 Label (R
 //+------------------------------------------------------------------+
 //| Input Parameters - Fibo Labels Buy (Initial)                     |
 //+------------------------------------------------------------------+
-// *** NOTE: v2.02 logic - Flipped to match Logic B ***
 input group "=== Fibo Labels Buy (Initial) ==="
 input string         InpFiboBuyLevel3Label = "rc.tp";      // Level 3 Label
 input string         InpFiboBuyLevel1Label = "sl";         // Level 1 Label
@@ -233,7 +230,6 @@ string g_lblSymbolWarning = "FBO_LBL_SYM_WARNING";
 // Button States
 bool g_isHighActive = false;
 bool g_isLowActive = false;
-bool g_isStartActive = false;
 bool g_isUIClick = false; // Flag to distinguish UI clicks from chart clicks
 
 // Auto-Detection State
@@ -329,7 +325,6 @@ void RemoveLineFromHistory(string lineName);
 void CheckSymbolWarning();
 void SetTimerState(ENUM_TRADE_STATE state);
 void FindTwoSequentialLines(string &line1, string &line2);
-// *** CHANGED: Removed SetFiboStyle declaration ***
 void ShowAlertMessage(int type);
 // Auto-Detection Functions
 void DetectUnmitigatedLevels();
@@ -780,7 +775,6 @@ void DrawLowLine(double price, datetime time)
 //+------------------------------------------------------------------+
 //| Clean All Lines                                                  |
 //+------------------------------------------------------------------+
-// *** CHANGED (v2.03): Now deletes ALL HLINE objects from chart (Super-Clean) ***
 void CleanAllLines()
 {
    // Loop backwards as we are deleting all HLINE objects
@@ -795,12 +789,10 @@ void CleanAllLines()
    g_lineHistoryCount = 0;
    ChartRedraw();
 }
-// *** END CHANGED ***
 
 //+------------------------------------------------------------------+
 //| Clean All Boxes                                                  |
 //+------------------------------------------------------------------+
-// *** CHANGED (v2.03): Now deletes ALL RECTANGLE objects from chart (Super-Clean) ***
 void CleanAllBoxes()
 {
    // Loop backwards as we are deleting all RECTANGLE objects
@@ -815,12 +807,10 @@ void CleanAllBoxes()
    g_lastHighlightBoxName = "";
    ChartRedraw();
 }
-// *** END CHANGED ***
 
 //+------------------------------------------------------------------+
 //| Clean All Fibos                                                  |
 //+------------------------------------------------------------------+
-// *** CHANGED (v2.03): Now deletes ALL FIBO objects from chart (Super-Clean) ***
 void CleanAllFibos()
 {
    // Loop backwards as we are deleting all FIBO objects
@@ -834,7 +824,6 @@ void CleanAllFibos()
    ResetManualFiboTracking();
    ChartRedraw();
 }
-// *** END CHANGED ***
 
 //+------------------------------------------------------------------+
 //| Clean All Objects                                                |
@@ -1312,7 +1301,6 @@ void DrawManualFibo(bool isBuy)
 // FBO Logic (v2.01):
 // isBuy = true  (Buy Fibo / on Low Line) -> Lvl 0=SL, Lvl 1=Entry
 // isBuy = false (Sell Fibo / on High Line) -> Lvl 0=Entry, Lvl 1=SL
-// *** CHANGED (v2.04): Set fixed styles, removed SetFiboStyle call ***
 string DrawFibonacci(double linePrice, bool isBuy, bool isRecovery, int offsetCandles)
 {
    double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
@@ -1353,11 +1341,9 @@ string DrawFibonacci(double linePrice, bool isBuy, bool isRecovery, int offsetCa
    ObjectSetInteger(0, fiboName, OBJPROP_SELECTABLE, true);
    ObjectSetInteger(0, fiboName, OBJPROP_RAY_RIGHT, false); 
    
-   // *** CHANGED (v2.04): Set fixed styles ***
    // Main line style (0-1)
    ObjectSetInteger(0, fiboName, OBJPROP_WIDTH, 1);
    ObjectSetInteger(0, fiboName, OBJPROP_STYLE, STYLE_DOT);
-   // *** END CHANGED ***
    
    ObjectSetInteger(0, fiboName, OBJPROP_LEVELS, 4);
 
@@ -1365,10 +1351,8 @@ string DrawFibonacci(double linePrice, bool isBuy, bool isRecovery, int offsetCa
    // Level 0 (SL for Buy, Entry for Sell)
    ObjectSetDouble(0, fiboName, OBJPROP_LEVELVALUE, 0, 0.0);
    ObjectSetInteger(0, fiboName, OBJPROP_LEVELCOLOR, 0, fiboColor);
-   // *** CHANGED (v2.04): Set fixed level style ***
    ObjectSetInteger(0, fiboName, OBJPROP_LEVELWIDTH, 0, 1);
    ObjectSetInteger(0, fiboName, OBJPROP_LEVELSTYLE, 0, STYLE_SOLID);
-   // *** END CHANGED ***
    if(isBuy){ // Is Buy Setup
       if(isRecovery) ObjectSetString(0, fiboName, OBJPROP_LEVELTEXT, 0, InpFiboBuyLevel0LabelRecov);
       else ObjectSetString(0, fiboName, OBJPROP_LEVELTEXT, 0, InpFiboBuyLevel0Label);
@@ -1380,10 +1364,8 @@ string DrawFibonacci(double linePrice, bool isBuy, bool isRecovery, int offsetCa
    // Level 1 (Entry for Buy, SL for Sell)
    ObjectSetDouble(0, fiboName, OBJPROP_LEVELVALUE, 1, 1.0);
    ObjectSetInteger(0, fiboName, OBJPROP_LEVELCOLOR, 1, fiboColor);
-   // *** CHANGED (v2.04): Set fixed level style ***
    ObjectSetInteger(0, fiboName, OBJPROP_LEVELWIDTH, 1, 1);
    ObjectSetInteger(0, fiboName, OBJPROP_LEVELSTYLE, 1, STYLE_SOLID);
-   // *** END CHANGED ***
    if(isBuy){ // Is Buy Setup
       if(isRecovery) ObjectSetString(0, fiboName, OBJPROP_LEVELTEXT, 1, InpFiboBuyLevel1LabelRecov);
       else ObjectSetString(0, fiboName, OBJPROP_LEVELTEXT, 1, InpFiboBuyLevel1Label);
@@ -1395,19 +1377,15 @@ string DrawFibonacci(double linePrice, bool isBuy, bool isRecovery, int offsetCa
    // Level 3
    ObjectSetDouble(0, fiboName, OBJPROP_LEVELVALUE, 2, 3.0);
    ObjectSetInteger(0, fiboName, OBJPROP_LEVELCOLOR, 2, fiboColor);
-   // *** CHANGED (v2.04): Set fixed level style ***
    ObjectSetInteger(0, fiboName, OBJPROP_LEVELWIDTH, 2, 1);
    ObjectSetInteger(0, fiboName, OBJPROP_LEVELSTYLE, 2, STYLE_SOLID);
-   // *** END CHANGED ***
    ObjectSetString(0, fiboName, OBJPROP_LEVELTEXT, 2, isBuy ? InpFiboBuyLevel3Label : InpFiboSellLevel3Label);
    
    // Level -2
    ObjectSetDouble(0, fiboName, OBJPROP_LEVELVALUE, 3, -2.0);
    ObjectSetInteger(0, fiboName, OBJPROP_LEVELCOLOR, 3, fiboColor);
-   // *** CHANGED (v2.04): Set fixed level style ***
    ObjectSetInteger(0, fiboName, OBJPROP_LEVELWIDTH, 3, 1);
    ObjectSetInteger(0, fiboName, OBJPROP_LEVELSTYLE, 3, STYLE_SOLID);
-   // *** END CHANGED ***
    ObjectSetString(0, fiboName, OBJPROP_LEVELTEXT, 3, isBuy ? InpFiboBuyLevelMinus2Label : InpFiboSellLevelMinus2Label);
 
    ChartRedraw();
@@ -1516,7 +1494,6 @@ void DeleteOppositeType(bool isHighLineBreak)
       if(StringFind(lineName, typeToDelete) >= 0)
       {
          ObjectDelete(0, lineName);
-         // *** NEW (v2.03): Remove from history array as well ***
          RemoveLineFromHistory(lineName); 
       }
    }
@@ -1652,13 +1629,11 @@ void CheckInitialBreakout()
          {
             CreateBreakoutHighlight(g_secondaryFibo.lineName, linePrice, isHighLine);
             ObjectDelete(0, g_primaryFibo.fiboName);
-            // *** CHANGED (v2.03): Delete primary line and remove from history ***
             if(g_primaryFibo.lineName != "" && ObjectFind(0, g_primaryFibo.lineName) >= 0)
             {
                ObjectDelete(0, g_primaryFibo.lineName);
                RemoveLineFromHistory(g_primaryFibo.lineName);
             }
-            // *** END CHANGED ***
             
             DeleteOppositeType(isHighLine);
             g_primaryFibo = g_secondaryFibo;
@@ -1706,13 +1681,11 @@ void ProcessBreakoutState()
       {
          ObjectDelete(0, g_secondaryFibo.fiboName);
          
-         // *** CHANGED (v2.03): Delete secondary line if entry is reached ***
          if(g_secondaryFibo.lineName != "" && ObjectFind(0, g_secondaryFibo.lineName) >= 0)
          {
             ObjectDelete(0, g_secondaryFibo.lineName);
             RemoveLineFromHistory(g_secondaryFibo.lineName);
          }
-         // *** END CHANGED ***
          
          g_secondaryFibo.fiboName = "";
          g_secondaryFibo.lineName = "";
@@ -1721,7 +1694,6 @@ void ProcessBreakoutState()
 
       g_tradeState = TRADE_STATE_ACTIVE;
       SetTimerState(g_tradeState);
-      // *** CHANGED (v2.04): Removed SetFiboStyle call ***
 
       // Clean all objects except active trade's line, fibo, and highlight
       CleanAllExceptActiveTrade();
@@ -1754,13 +1726,11 @@ void ProcessBreakoutState()
             CreateBreakoutHighlight(g_secondaryFibo.lineName, linePrice, isHighLine);
             ObjectDelete(0, g_primaryFibo.fiboName);
 
-            // *** CHANGED (v2.03): Delete the primary line and remove from history ***
             if(g_primaryFibo.lineName != "" && ObjectFind(0, g_primaryFibo.lineName) >= 0)
             {
                ObjectDelete(0, g_primaryFibo.lineName);
                RemoveLineFromHistory(g_primaryFibo.lineName);
             }
-            // *** END CHANGED ***
             
             g_primaryFibo = g_secondaryFibo;
             g_secondaryFibo.fiboName = ""; g_secondaryFibo.lineName = "";
@@ -1866,7 +1836,6 @@ void ProcessActiveState()
          UpdateFiboLabelsToRecovery(g_primaryFibo.fiboName, g_isBuySetup);
       }
       
-      // *** CHANGED (v2.04): Removed SetFiboStyle call ***
       if(InpEnableTimer)
       {
          g_timerSeconds = InpTimerDuration; 
