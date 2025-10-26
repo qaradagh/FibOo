@@ -72,12 +72,25 @@ input group "=== Line Drawing Settings ==="
 input int            InpMagnetCandleRange = 3;             // Magnet Candle Range
 
 //+------------------------------------------------------------------+
+//| Double Shadow Behavior Enum                                      |
+//+------------------------------------------------------------------+
+enum ENUM_DOUBLE_SHADOW_MODE
+{
+   DOUBLE_SHADOW_IGNORE,     // Ignore (Default)
+   DOUBLE_SHADOW_BOTH,       // Mark Both High and Low
+   DOUBLE_SHADOW_LARGER      // Mark Only Larger Shadow
+};
+
+//+------------------------------------------------------------------+
 //| Input Parameters - Auto Detection (Unmitigated Levels)          |
 //+------------------------------------------------------------------+
 input group "=== Auto-Detection: Unmitigated Levels ==="
 input int            InpLookbackCandles = 200;             // Lookback Candles
 input int            InpSwingLeftBars = 1;                 // Swing Left Bars
 input int            InpSwingRightBars = 1;                // Swing Right Bars
+input int            InpValidationCount = 5;               // Last N Swings to Validate (0=disable)
+input int            InpMinShadowSize = 0;                 // Min Pin Bar Shadow Size in Points (0=disable)
+input ENUM_DOUBLE_SHADOW_MODE InpDoubleShadowMode = DOUBLE_SHADOW_IGNORE; // Double Shadow Behavior
 input int            InpMergeProximity = 200;              // Merge Proximity (Points)
 
 //+------------------------------------------------------------------+
@@ -329,6 +342,8 @@ void DetectUnmitigatedLevels();
 bool IsSwingHigh(int bar);
 bool IsSwingLow(int bar);
 bool IsUnmitigated(double price, bool isHigh, int fromBar);
+bool IsPinBar(int bar, bool &isHighPinBar, bool &isLowPinBar);
+bool HasConsumedLevelAfter(int barIndex);
 void MergeNearbyLevels();
 // Cleanup Functions
 void CleanAllExceptActiveTrade();
@@ -2215,60 +2230,118 @@ void DetectUnmitigatedLevels()
       }
    }
 
+   struct LevelCandidate
+   {
+      int barIndex;
+      double price;
+      bool isHigh;
+   };
+
+   LevelCandidate candidates[];
+   int candidateCount = 0;
+
    int barsToCheck = MathMin(InpLookbackCandles, Bars(_Symbol, _Period) - InpSwingLeftBars - InpSwingRightBars);
 
-   // Scan for swing highs and lows
+   // Collect all swing highs, lows, and pin bars
    for(int i = InpSwingRightBars; i < barsToCheck; i++)
    {
-      // Check Swing High
+      bool addedHigh = false;
+      bool addedLow = false;
+
+      // Check for swing high/low
       if(IsSwingHigh(i))
       {
          double swingPrice = iHigh(_Symbol, _Period, i);
-
-         // Check if unmitigated (price hasn't crossed back)
          if(IsUnmitigated(swingPrice, true, i))
          {
-
-            // Draw line
-            datetime swingTime = iTime(_Symbol, _Period, i);
-            string lineName = g_autoLinePrefix + "HIGH_" + IntegerToString(i);
-
-            ObjectCreate(0, lineName, OBJ_HLINE, 0, swingTime, swingPrice);
-            ObjectSetInteger(0, lineName, OBJPROP_COLOR, InpHighLineColor);
-            ObjectSetInteger(0, lineName, OBJPROP_WIDTH, InpHighLineWidth);
-            ObjectSetInteger(0, lineName, OBJPROP_STYLE, InpHighLineStyle);
-            ObjectSetInteger(0, lineName, OBJPROP_BACK, false);
-            ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, true);
-            ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, true);
-
-            ArrayResize(g_lineHistory, g_lineHistoryCount + 1);
-            g_lineHistory[g_lineHistoryCount++] = lineName;
+            ArrayResize(candidates, candidateCount + 1);
+            candidates[candidateCount].barIndex = i;
+            candidates[candidateCount].price = swingPrice;
+            candidates[candidateCount].isHigh = true;
+            candidateCount++;
+            addedHigh = true;
          }
       }
 
-      // Check Swing Low
       if(IsSwingLow(i))
       {
          double swingPrice = iLow(_Symbol, _Period, i);
-
-         // Check if unmitigated (price hasn't crossed back)
          if(IsUnmitigated(swingPrice, false, i))
          {
-            // Draw line
-            datetime swingTime = iTime(_Symbol, _Period, i);
-            string lineName = g_autoLinePrefix + "LOW_" + IntegerToString(i);
-
-            ObjectCreate(0, lineName, OBJ_HLINE, 0, swingTime, swingPrice);
-            ObjectSetInteger(0, lineName, OBJPROP_COLOR, InpLowLineColor);
-            ObjectSetInteger(0, lineName, OBJPROP_WIDTH, InpLowLineWidth);
-            ObjectSetInteger(0, lineName, OBJPROP_STYLE, InpLowLineStyle);
-            ObjectSetInteger(0, lineName, OBJPROP_BACK, false);
-            ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, true);
-            ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, true);
-
-            ArrayResize(g_lineHistory, g_lineHistoryCount + 1);
-            g_lineHistory[g_lineHistoryCount++] = lineName;
+            ArrayResize(candidates, candidateCount + 1);
+            candidates[candidateCount].barIndex = i;
+            candidates[candidateCount].price = swingPrice;
+            candidates[candidateCount].isHigh = false;
+            candidateCount++;
+            addedLow = true;
          }
+      }
+
+      // Check for pin bars (if not already added as swing)
+      bool isHighPinBar = false;
+      bool isLowPinBar = false;
+
+      if(IsPinBar(i, isHighPinBar, isLowPinBar))
+      {
+         if(isHighPinBar && !addedHigh)
+         {
+            double pinPrice = iHigh(_Symbol, _Period, i);
+            if(IsUnmitigated(pinPrice, true, i))
+            {
+               ArrayResize(candidates, candidateCount + 1);
+               candidates[candidateCount].barIndex = i;
+               candidates[candidateCount].price = pinPrice;
+               candidates[candidateCount].isHigh = true;
+               candidateCount++;
+            }
+         }
+
+         if(isLowPinBar && !addedLow)
+         {
+            double pinPrice = iLow(_Symbol, _Period, i);
+            if(IsUnmitigated(pinPrice, false, i))
+            {
+               ArrayResize(candidates, candidateCount + 1);
+               candidates[candidateCount].barIndex = i;
+               candidates[candidateCount].price = pinPrice;
+               candidates[candidateCount].isHigh = false;
+               candidateCount++;
+            }
+         }
+      }
+   }
+
+   // Apply validation filter to last N candidates
+   int validationStart = (InpValidationCount > 0 && candidateCount > InpValidationCount)
+                         ? candidateCount - InpValidationCount : 0;
+
+   // Draw validated levels
+   for(int i = 0; i < candidateCount; i++)
+   {
+      bool shouldDraw = true;
+
+      // Apply validation only to last N
+      if(i >= validationStart && InpValidationCount > 0)
+      {
+         if(!HasConsumedLevelAfter(candidates[i].barIndex))
+            shouldDraw = false;
+      }
+
+      if(shouldDraw)
+      {
+         datetime swingTime = iTime(_Symbol, _Period, candidates[i].barIndex);
+         string lineName = g_autoLinePrefix + (candidates[i].isHigh ? "HIGH_" : "LOW_") + IntegerToString(candidates[i].barIndex);
+
+         ObjectCreate(0, lineName, OBJ_HLINE, 0, swingTime, candidates[i].price);
+         ObjectSetInteger(0, lineName, OBJPROP_COLOR, candidates[i].isHigh ? InpHighLineColor : InpLowLineColor);
+         ObjectSetInteger(0, lineName, OBJPROP_WIDTH, candidates[i].isHigh ? InpHighLineWidth : InpLowLineWidth);
+         ObjectSetInteger(0, lineName, OBJPROP_STYLE, candidates[i].isHigh ? InpHighLineStyle : InpLowLineStyle);
+         ObjectSetInteger(0, lineName, OBJPROP_BACK, false);
+         ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, true);
+         ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, true);
+
+         ArrayResize(g_lineHistory, g_lineHistoryCount + 1);
+         g_lineHistory[g_lineHistoryCount++] = lineName;
       }
    }
 
@@ -2349,6 +2422,96 @@ bool IsUnmitigated(double price, bool isHigh, int fromBar)
    }
 
    return true; // Level is still unmitigated
+}
+
+//+------------------------------------------------------------------+
+//| Check if bar is a Pin Bar with large shadow(s)                  |
+//+------------------------------------------------------------------+
+bool IsPinBar(int bar, bool &isHighPinBar, bool &isLowPinBar)
+{
+   isHighPinBar = false;
+   isLowPinBar = false;
+
+   if(InpMinShadowSize <= 0)
+      return false;
+
+   double open = iOpen(_Symbol, _Period, bar);
+   double close = iClose(_Symbol, _Period, bar);
+   double high = iHigh(_Symbol, _Period, bar);
+   double low = iLow(_Symbol, _Period, bar);
+   double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+
+   double bodyHigh = MathMax(open, close);
+   double bodyLow = MathMin(open, close);
+
+   double upperShadow = high - bodyHigh;
+   double lowerShadow = bodyLow - low;
+
+   double minShadowPrice = InpMinShadowSize * point;
+
+   if(upperShadow >= minShadowPrice)
+      isHighPinBar = true;
+
+   if(lowerShadow >= minShadowPrice)
+      isLowPinBar = true;
+
+   if(InpDoubleShadowMode == DOUBLE_SHADOW_IGNORE && isHighPinBar && isLowPinBar)
+   {
+      isHighPinBar = false;
+      isLowPinBar = false;
+      return false;
+   }
+
+   if(InpDoubleShadowMode == DOUBLE_SHADOW_LARGER && isHighPinBar && isLowPinBar)
+   {
+      if(upperShadow > lowerShadow)
+         isLowPinBar = false;
+      else
+         isHighPinBar = false;
+   }
+
+   return (isHighPinBar || isLowPinBar);
+}
+
+//+------------------------------------------------------------------+
+//| Check if any level was consumed after this bar formed           |
+//+------------------------------------------------------------------+
+bool HasConsumedLevelAfter(int barIndex)
+{
+   if(InpValidationCount <= 0)
+      return true;
+
+   double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+
+   // Check bars AFTER this bar formed (from barIndex-1 down to 0)
+   for(int i = barIndex - 1; i >= 0; i--)
+   {
+      // Check if this bar i was a swing high or low
+      bool isSwing = IsSwingHigh(i) || IsSwingLow(i);
+
+      if(isSwing)
+      {
+         double levelPrice = IsSwingHigh(i) ? iHigh(_Symbol, _Period, i) : iLow(_Symbol, _Period, i);
+         bool isHigh = IsSwingHigh(i);
+
+         // Check if this level was consumed (mitigated) after it formed
+         for(int j = i - 1; j >= 0; j--)
+         {
+            if(isHigh)
+            {
+               if(iHigh(_Symbol, _Period, j) > levelPrice + point)
+                  return true; // Found a consumed high after barIndex
+            }
+            else
+            {
+               if(iLow(_Symbol, _Period, j) < levelPrice - point)
+                  return true; // Found a consumed low after barIndex
+            }
+         }
+      }
+   }
+
+   return false;
 }
 
 //+------------------------------------------------------------------+
