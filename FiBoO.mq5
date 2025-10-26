@@ -2503,7 +2503,7 @@ void MergeNearbyLevels()
    for(int i = ObjectsTotal(0, 0, OBJ_HLINE) - 1; i >= 0; i--)
    {
       string name = ObjectName(0, i, 0, OBJ_HLINE);
-      double price = ObjectGetDouble(0, name, OBJPROP_PRICE, 0);
+      double price = ObjectGetDouble(0, name, OBJPROP_PRICE);
 
       // Determine if it's a high or low based on position relative to current price
       if(price > currentPrice)
