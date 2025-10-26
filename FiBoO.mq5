@@ -19,14 +19,29 @@ enum ENUM_CALC_MODE
    CALC_MANUAL     // Manual
 };
 //+------------------------------------------------------------------+
-//| Input Parameters - Calculation Settings                          |
+//| SL Auto Mode Enum                                                |
 //+------------------------------------------------------------------+
-input group "=== Calculation Settings ==="
-input ENUM_CALC_MODE InpCalculationMode = CALC_AUTO;       // Calculation Mode
+enum ENUM_SL_AUTO_MODE
+{
+   SL_AUTO_MODE_CANDLE,   // Based on Candle
+   SL_AUTO_MODE_ATR       // Based on ATR
+};
+
+//+------------------------------------------------------------------+
+//| Input Parameters - Stop Loss Manual                             |
+//+------------------------------------------------------------------+
+input group "=== Stop Loss Manual ==="
 input int            InpManualStopLoss = 30000;            // Manual StopLoss (Points)
 input int            InpManualBreakout = 10000;            // Manual Breakout (Points)
-input int            InpATRPeriod = 78;                    // ATR Period (Candles)
-input double         InpSLMultiplier = 1.0;                // SL Multiplier
+
+//+------------------------------------------------------------------+
+//| Input Parameters - Stop Loss Auto                               |
+//+------------------------------------------------------------------+
+input group "=== Stop Loss Auto ==="
+input ENUM_CALC_MODE InpCalculationMode = CALC_AUTO;       // Calculation Mode
+input ENUM_SL_AUTO_MODE InpSLAutoMode = SL_AUTO_MODE_ATR;  // SL Auto Mode
+input int            InpATRPeriod = 78;                    // Candle Count / ATR Period
+input double         InpSLMultiplier = 1.0;                // Multiplier
 
 //+------------------------------------------------------------------+
 //| Input Parameters - Highlight Settings                            |
@@ -71,14 +86,14 @@ enum ENUM_DISTANCE_MODE
 //| Input Parameters - Auto Detection (Unmitigated Levels)          |
 //+------------------------------------------------------------------+
 input group "=== Auto-Detection: Unmitigated Levels ==="
-input int            InpSwingLeftBars = 1;                 // Swing Left Bars
-input int            InpSwingRightBars = 1;                // Swing Right Bars
 input int            InpLookbackCandles = 200;             // Lookback Candles
+input int            InpSwingLeftBars = 1;                 // Candle Count: Swing Left Bars
+input int            InpSwingRightBars = 1;                // Candle Count: Swing Right Bars
 input ENUM_DISTANCE_MODE InpDistanceMode = DISTANCE_MODE_FIXED; // Distance Mode
 input int            InpMinSwingDistance = 1;              // Min Distance (Points or ATR Period)
-input double         InpATRMultiplier = 1.0;               // ATR Multiplier
-input int            InpVolumeAvgPeriod = 20;              // Volume Average Period (for LHD+V)
-input int            InpMergeProximity = 200;              // Merge Proximity (Points)
+input double         InpSwingATRMultiplier = 1.0;          // Multiplier: ATR Multiplier for Distance
+input int            InpVolumeAvgPeriod = 20;              // Volume: Average Period (for LHD+V)
+input int            InpMergeProximity = 200;              // Merge: Proximity (Points)
 
 //+------------------------------------------------------------------+
 //| Input Parameters - Fibonacci Settings                            |
@@ -140,9 +155,9 @@ input bool           InpUseSpread = true;                    // Use Spread for E
 input group "=== Timer Settings ==="
 input bool           InpEnableTimer = true;                // Enable Timer
 input int            InpTimerDuration = 40;                // Timer Duration (Seconds)
-input ENUM_BASE_CORNER InpTimerCorner = CORNER_RIGHT_LOWER;// Timer Anchor Corner
+input ENUM_BASE_CORNER InpTimerCorner = CORNER_RIGHT_UPPER;// Timer Anchor Corner
 input int            InpTimerX = 68;                       // Timer X Position
-input int            InpTimerY = 612;                      // Timer Y Position
+input int            InpTimerY = 650;                      // Timer Y Position
 input int            InpTimerFontSize = 15;                // Timer Font Size (Icon + Number)
 input color          InpTimerColorDefault = 4737096;       // Timer Color (Default)
 input color          InpTimerColorArmed = 45055;           // Timer Color (Armed)
@@ -186,7 +201,7 @@ input string         InpAlertTextLoss = "💎 DISCIPLINE MEDAL! Tomorrow is your
 //| Input Parameters - UI Panel Settings                             |
 //+------------------------------------------------------------------+
 input group "=== UI Panel Settings ==="
-input ENUM_BASE_CORNER InpPanelCorner = CORNER_RIGHT_LOWER; // Panel Anchor Corner
+input ENUM_BASE_CORNER InpPanelCorner = CORNER_RIGHT_UPPER; // Panel Anchor Corner
 input int            InpPanelPaddingX = 125;               // Panel Padding X (from corner)
 input int            InpPanelPaddingY = 450;               // Panel Padding Y (from corner)
 input int            InpButtonWidth = 100;                 // Button Width
@@ -203,9 +218,9 @@ input int            InpButtonFontSize = 8;                // Button Font Size
 //| Input Parameters - Display Text Settings                         |
 //+------------------------------------------------------------------+
 input group "=== Display Text Settings ==="
-input ENUM_BASE_CORNER InpTextCorner = CORNER_RIGHT_LOWER; // Text Anchor Corner
+input ENUM_BASE_CORNER InpTextCorner = CORNER_RIGHT_UPPER; // Text Anchor Corner
 input int            InpTextX = 230;                       // Text X Position
-input int            InpTextY = 616;                       // Text Y Position
+input int            InpTextY = 655;                       // Text Y Position
 input color          InpTextColor = 4737096;               // Text Color
 input int            InpTextFontSize = 8;                  // Text Font Size
 
@@ -518,10 +533,10 @@ void CreateUIPanel()
    CreateButton(g_btnStart, "Start", col1X, row4Y, w, h, InpPanelCorner);
    CreateButton(g_btnMerge, "MRG", col2X, row4Y, w, h, InpPanelCorner);
 
-   // Row 5: Undo | Reset
+   // Row 5: Reset | Undo
    int row5Y = row4Y + h + spacingV;
-   CreateButton(g_btnUndo, "Undo", col1X, row5Y, w, h, InpPanelCorner);
-   CreateButton(g_btnReset, "Reset", col2X, row5Y, w, h, InpPanelCorner);
+   CreateButton(g_btnReset, "Reset", col1X, row5Y, w, h, InpPanelCorner);
+   CreateButton(g_btnUndo, "Undo", col2X, row5Y, w, h, InpPanelCorner);
 
    ChartRedraw();
 }
@@ -2442,7 +2457,7 @@ double GetMinSwingDistance()
          return 0;
       }
 
-      double distance = atr_buffer[0] * InpATRMultiplier;
+      double distance = atr_buffer[0] * InpSwingATRMultiplier;
       IndicatorRelease(atr_handle);
       return distance;
    }
