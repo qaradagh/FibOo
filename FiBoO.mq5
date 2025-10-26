@@ -59,13 +59,26 @@ input group "=== Line Drawing Settings ==="
 input int            InpMagnetCandleRange = 3;             // Magnet Candle Range
 
 //+------------------------------------------------------------------+
+//| Distance Mode Enum                                               |
+//+------------------------------------------------------------------+
+enum ENUM_DISTANCE_MODE
+{
+   DISTANCE_MODE_FIXED,      // Fixed Points
+   DISTANCE_MODE_ATR         // ATR-Based
+};
+
+//+------------------------------------------------------------------+
 //| Input Parameters - Auto Detection (Unmitigated Levels)          |
 //+------------------------------------------------------------------+
 input group "=== Auto-Detection: Unmitigated Levels ==="
 input int            InpSwingLeftBars = 1;                 // Swing Left Bars
 input int            InpSwingRightBars = 1;                // Swing Right Bars
 input int            InpLookbackCandles = 200;             // Lookback Candles
-input int            InpMinSwingDistance = 1;              // Min Distance Between Swings (Points)
+input ENUM_DISTANCE_MODE InpDistanceMode = DISTANCE_MODE_FIXED; // Distance Mode
+input int            InpMinSwingDistance = 1;              // Min Distance (Points or ATR Period)
+input double         InpATRMultiplier = 1.0;               // ATR Multiplier
+input int            InpVolumeAvgPeriod = 20;              // Volume Average Period (for LHD+V)
+input int            InpMergeProximity = 200;              // Merge Proximity (Points)
 
 //+------------------------------------------------------------------+
 //| Input Parameters - Fibonacci Settings                            |
@@ -208,6 +221,8 @@ string g_btnStart = "FBO_BTN_START";
 string g_btnUndo = "FBO_BTN_UNDO";
 string g_btnReset = "FBO_BTN_RESET";
 string g_btnAutoDetect = "FBO_BTN_AUTO_DETECT";
+string g_btnLHDVolume = "FBO_BTN_LHD_VOLUME";
+string g_btnMerge = "FBO_BTN_MERGE";
 // UI Label Names
 string g_lblStopLoss = "FBO_LBL_SL";
 string g_lblBreakout = "FBO_LBL_BO";
@@ -317,10 +332,14 @@ void FindTwoSequentialLines(string &line1, string &line2);
 // *** CHANGED: Removed SetFiboStyle declaration ***
 void ShowAlertMessage(int type);
 // Auto-Detection Functions
-void DetectUnmitigatedLevels();
+void DetectUnmitigatedLevels(bool useVolumeFilter);
 bool IsSwingHigh(int bar);
 bool IsSwingLow(int bar);
 bool IsUnmitigated(double price, bool isHigh, int fromBar);
+double GetMinSwingDistance();
+double GetVolumeAverage(int period);
+bool HasHighVolume(int bar, double avgVolume);
+void MergeNearbyLevels();
 // Cleanup Functions
 void CleanAllExceptActiveTrade();
 
@@ -483,20 +502,26 @@ void CreateUIPanel()
    // Row 1: High | S.Fibo
    CreateButton(g_btnHigh, "High", col1X, buttonStartY, w, h, InpPanelCorner);
    CreateButton(g_btnSellFibo, "S.Fibo", col2X, buttonStartY, w, h, InpPanelCorner);
+
    // Row 2: Low | B.Fibo
    int row2Y = buttonStartY + h + spacingV;
    CreateButton(g_btnLow, "Low", col1X, row2Y, w, h, InpPanelCorner);
    CreateButton(g_btnBuyFibo, "B.Fibo", col2X, row2Y, w, h, InpPanelCorner);
 
-   // Row 3: Start | LHD (Auto-Detect)
+   // Row 3: LHD | LHD+V
    int row3Y = row2Y + h + spacingV;
-   CreateButton(g_btnStart, "Start", col1X, row3Y, w, h, InpPanelCorner);
-   CreateButton(g_btnAutoDetect, "LHD", col2X, row3Y, w, h, InpPanelCorner);
+   CreateButton(g_btnAutoDetect, "LHD", col1X, row3Y, w, h, InpPanelCorner);
+   CreateButton(g_btnLHDVolume, "LHD+V", col2X, row3Y, w, h, InpPanelCorner);
 
-   // Row 4: Undo | Reset
+   // Row 4: Start | MRG
    int row4Y = row3Y + h + spacingV;
-   CreateButton(g_btnUndo, "Undo", col1X, row4Y, w, h, InpPanelCorner);
-   CreateButton(g_btnReset, "Reset", col2X, row4Y, w, h, InpPanelCorner);
+   CreateButton(g_btnStart, "Start", col1X, row4Y, w, h, InpPanelCorner);
+   CreateButton(g_btnMerge, "MRG", col2X, row4Y, w, h, InpPanelCorner);
+
+   // Row 5: Undo | Reset
+   int row5Y = row4Y + h + spacingV;
+   CreateButton(g_btnUndo, "Undo", col1X, row5Y, w, h, InpPanelCorner);
+   CreateButton(g_btnReset, "Reset", col2X, row5Y, w, h, InpPanelCorner);
 
    ChartRedraw();
 }
@@ -512,6 +537,8 @@ void DeleteUIPanel()
    ObjectDelete(0, g_btnSellFibo);
    ObjectDelete(0, g_btnStart);
    ObjectDelete(0, g_btnUndo);
+   ObjectDelete(0, g_btnLHDVolume);
+   ObjectDelete(0, g_btnMerge);
    ObjectDelete(0, g_btnReset);
    ObjectDelete(0, g_btnAutoDetect);
    ObjectDelete(0, g_lblStopLoss);
@@ -660,7 +687,19 @@ void HandleButtonClick(string clickedObject)
    else if(clickedObject == g_btnAutoDetect)
    {
       ObjectSetInteger(0, g_btnAutoDetect, OBJPROP_STATE, false);
-      DetectUnmitigatedLevels(); // Run detection once
+      DetectUnmitigatedLevels(false); // Run detection once without volume filter
+   }
+   // Auto-Detect with Volume button (LHD+V)
+   else if(clickedObject == g_btnLHDVolume)
+   {
+      ObjectSetInteger(0, g_btnLHDVolume, OBJPROP_STATE, false);
+      DetectUnmitigatedLevels(true); // Run detection once with volume filter
+   }
+   // Merge button (MRG)
+   else if(clickedObject == g_btnMerge)
+   {
+      ObjectSetInteger(0, g_btnMerge, OBJPROP_STATE, false);
+      MergeNearbyLevels(); // Merge nearby levels
    }
 
    ChartRedraw();
@@ -2215,7 +2254,7 @@ string FindNextNearestLine(string lineType, string &usedLines[])
 //+------------------------------------------------------------------+
 //| Auto-Detection: Main Function                                    |
 //+------------------------------------------------------------------+
-void DetectUnmitigatedLevels()
+void DetectUnmitigatedLevels(bool useVolumeFilter)
 {
    // Remove old auto-detected lines
    for(int i = ObjectsTotal(0, 0, OBJ_HLINE) - 1; i >= 0; i--)
@@ -2229,8 +2268,12 @@ void DetectUnmitigatedLevels()
    }
 
    int barsToCheck = MathMin(InpLookbackCandles, Bars(_Symbol, _Period) - InpSwingLeftBars - InpSwingRightBars);
-   double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
-   int minDistancePoints = InpMinSwingDistance;
+   double minDistance = GetMinSwingDistance();
+   double avgVolume = 0;
+
+   // Calculate volume average if filter is enabled
+   if(useVolumeFilter)
+      avgVolume = GetVolumeAverage(InpVolumeAvgPeriod);
 
    // Scan for swing highs and lows
    for(int i = InpSwingRightBars; i < barsToCheck; i++)
@@ -2243,6 +2286,10 @@ void DetectUnmitigatedLevels()
          // Check if unmitigated (price hasn't crossed back)
          if(IsUnmitigated(swingPrice, true, i))
          {
+            // If volume filter is enabled, check if bar has high volume
+            if(useVolumeFilter && !HasHighVolume(i, avgVolume))
+               continue;
+
             // Draw line
             datetime swingTime = iTime(_Symbol, _Period, i);
             string lineName = g_autoLinePrefix + "HIGH_" + IntegerToString(i);
@@ -2268,6 +2315,10 @@ void DetectUnmitigatedLevels()
          // Check if unmitigated (price hasn't crossed back)
          if(IsUnmitigated(swingPrice, false, i))
          {
+            // If volume filter is enabled, check if bar has high volume
+            if(useVolumeFilter && !HasHighVolume(i, avgVolume))
+               continue;
+
             // Draw line
             datetime swingTime = iTime(_Symbol, _Period, i);
             string lineName = g_autoLinePrefix + "LOW_" + IntegerToString(i);
@@ -2363,5 +2414,178 @@ bool IsUnmitigated(double price, bool isHigh, int fromBar)
    }
 
    return true; // Level is still unmitigated
+}
+
+//+------------------------------------------------------------------+
+//| Get Minimum Swing Distance (Fixed or ATR-based)                 |
+//+------------------------------------------------------------------+
+double GetMinSwingDistance()
+{
+   if(InpDistanceMode == DISTANCE_MODE_FIXED)
+   {
+      // Fixed point-based distance
+      return InpMinSwingDistance * SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+   }
+   else
+   {
+      // ATR-based distance
+      int atr_handle = iATR(_Symbol, _Period, InpMinSwingDistance);
+      if(atr_handle == INVALID_HANDLE)
+         return 0;
+
+      double atr_buffer[];
+      ArraySetAsSeries(atr_buffer, true);
+
+      if(CopyBuffer(atr_handle, 0, 0, 1, atr_buffer) <= 0)
+      {
+         IndicatorRelease(atr_handle);
+         return 0;
+      }
+
+      double distance = atr_buffer[0] * InpATRMultiplier;
+      IndicatorRelease(atr_handle);
+      return distance;
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Calculate Volume Average                                         |
+//+------------------------------------------------------------------+
+double GetVolumeAverage(int period)
+{
+   long volumes[];
+   ArraySetAsSeries(volumes, true);
+
+   if(CopyTickVolume(_Symbol, _Period, 0, period, volumes) <= 0)
+      return 0;
+
+   double sum = 0;
+   for(int i = 0; i < period; i++)
+      sum += volumes[i];
+
+   return sum / period;
+}
+
+//+------------------------------------------------------------------+
+//| Check if bar has high volume (above average)                    |
+//+------------------------------------------------------------------+
+bool HasHighVolume(int bar, double avgVolume)
+{
+   if(avgVolume <= 0)
+      return true; // If we can't determine average, accept all
+
+   long volume = iVolume(_Symbol, _Period, bar);
+   return volume > avgVolume;
+}
+
+//+------------------------------------------------------------------+
+//| Merge Nearby Levels - Keep Closest to Current Price             |
+//+------------------------------------------------------------------+
+void MergeNearbyLevels()
+{
+   double proximity = InpMergeProximity * SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+   double currentPrice = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+
+   // Arrays to store highs and lows
+   struct LevelInfo
+   {
+      string name;
+      double price;
+      double distanceToPrice;
+   };
+
+   LevelInfo highs[];
+   LevelInfo lows[];
+   int highCount = 0;
+   int lowCount = 0;
+
+   // Collect all horizontal lines
+   for(int i = ObjectsTotal(0, 0, OBJ_HLINE) - 1; i >= 0; i--)
+   {
+      string name = ObjectName(0, i, 0, OBJ_HLINE);
+      double price = ObjectGetDouble(0, name, OBJPROP_PRICE1);
+
+      // Determine if it's a high or low based on position relative to current price
+      if(price > currentPrice)
+      {
+         // It's a high (resistance)
+         ArrayResize(highs, highCount + 1);
+         highs[highCount].name = name;
+         highs[highCount].price = price;
+         highs[highCount].distanceToPrice = price - currentPrice;
+         highCount++;
+      }
+      else
+      {
+         // It's a low (support)
+         ArrayResize(lows, lowCount + 1);
+         lows[lowCount].name = name;
+         lows[lowCount].price = price;
+         lows[lowCount].distanceToPrice = currentPrice - price;
+         lowCount++;
+      }
+   }
+
+   // Merge nearby highs - keep the lowest (closest to price)
+   for(int i = 0; i < highCount; i++)
+   {
+      if(highs[i].name == "") continue; // Already deleted
+
+      for(int j = i + 1; j < highCount; j++)
+      {
+         if(highs[j].name == "") continue; // Already deleted
+
+         // Check if they are close to each other
+         if(MathAbs(highs[i].price - highs[j].price) <= proximity)
+         {
+            // Delete the one that's farther from current price (higher price)
+            if(highs[i].price > highs[j].price)
+            {
+               ObjectDelete(0, highs[i].name);
+               RemoveLineFromHistory(highs[i].name);
+               highs[i].name = "";
+               break;
+            }
+            else
+            {
+               ObjectDelete(0, highs[j].name);
+               RemoveLineFromHistory(highs[j].name);
+               highs[j].name = "";
+            }
+         }
+      }
+   }
+
+   // Merge nearby lows - keep the highest (closest to price)
+   for(int i = 0; i < lowCount; i++)
+   {
+      if(lows[i].name == "") continue; // Already deleted
+
+      for(int j = i + 1; j < lowCount; j++)
+      {
+         if(lows[j].name == "") continue; // Already deleted
+
+         // Check if they are close to each other
+         if(MathAbs(lows[i].price - lows[j].price) <= proximity)
+         {
+            // Delete the one that's farther from current price (lower price)
+            if(lows[i].price < lows[j].price)
+            {
+               ObjectDelete(0, lows[i].name);
+               RemoveLineFromHistory(lows[i].name);
+               lows[i].name = "";
+               break;
+            }
+            else
+            {
+               ObjectDelete(0, lows[j].name);
+               RemoveLineFromHistory(lows[j].name);
+               lows[j].name = "";
+            }
+         }
+      }
+   }
+
+   ChartRedraw();
 }
 //+------------------------------------------------------------------+
