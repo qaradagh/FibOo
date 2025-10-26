@@ -321,6 +321,8 @@ void DetectUnmitigatedLevels();
 bool IsSwingHigh(int bar);
 bool IsSwingLow(int bar);
 bool IsUnmitigated(double price, bool isHigh, int fromBar);
+// Cleanup Functions
+void CleanAllExceptActiveTrade();
 
 
 //+------------------------------------------------------------------+
@@ -921,6 +923,61 @@ void DeleteAllChartObjects()
 
    // Reset manual fibo tracking
    ResetManualFiboTracking();
+}
+
+//+------------------------------------------------------------------+
+//| Clean All Objects Except Active Trade                            |
+//+------------------------------------------------------------------+
+void CleanAllExceptActiveTrade()
+{
+   // Delete all Horizontal Lines EXCEPT the primary fibo line
+   for(int i = ObjectsTotal(0, 0, OBJ_HLINE) - 1; i >= 0; i--)
+   {
+      string name = ObjectName(0, i, 0, OBJ_HLINE);
+      if(name != g_primaryFibo.lineName)
+         ObjectDelete(0, name);
+   }
+
+   // Delete all Fibonacci Retracements EXCEPT the primary fibo
+   for(int i = ObjectsTotal(0, 0, OBJ_FIBO) - 1; i >= 0; i--)
+   {
+      string name = ObjectName(0, i, 0, OBJ_FIBO);
+      if(name != g_primaryFibo.fiboName)
+         ObjectDelete(0, name);
+   }
+
+   // Delete all Rectangles/Boxes EXCEPT the current highlight
+   for(int i = ObjectsTotal(0, 0, OBJ_RECTANGLE) - 1; i >= 0; i--)
+   {
+      string name = ObjectName(0, i, 0, OBJ_RECTANGLE);
+      if(name != g_lastHighlightBoxName)
+         ObjectDelete(0, name);
+   }
+
+   // Delete ALL Trend Lines
+   for(int i = ObjectsTotal(0, 0, OBJ_TREND) - 1; i >= 0; i--)
+   {
+      string name = ObjectName(0, i, 0, OBJ_TREND);
+      ObjectDelete(0, name);
+   }
+
+   // Delete ALL Vertical Lines
+   for(int i = ObjectsTotal(0, 0, OBJ_VLINE) - 1; i >= 0; i--)
+   {
+      string name = ObjectName(0, i, 0, OBJ_VLINE);
+      ObjectDelete(0, name);
+   }
+
+   // Clear line history except for the primary fibo line
+   int newSize = 0;
+   if(g_primaryFibo.lineName != "")
+   {
+      // Keep only the primary line in history
+      g_lineHistory[0] = g_primaryFibo.lineName;
+      newSize = 1;
+   }
+   ArrayResize(g_lineHistory, newSize);
+   g_lineHistoryCount = newSize;
 }
 
 //+------------------------------------------------------------------+
@@ -1637,9 +1694,12 @@ void ProcessBreakoutState()
       }
 
       g_tradeState = TRADE_STATE_ACTIVE;
-      SetTimerState(g_tradeState); 
+      SetTimerState(g_tradeState);
       // *** CHANGED (v2.04): Removed SetFiboStyle call ***
-      
+
+      // Clean all objects except active trade's line, fibo, and highlight
+      CleanAllExceptActiveTrade();
+
       g_tradeActivationTime = TimeCurrent();
       g_tradeActive = true; 
       if(InpEnableTimer) g_timerSeconds = InpTimerDuration; 
