@@ -80,8 +80,6 @@ input group "=== Auto-Detection: Unmitigated Levels ==="
 input int            InpLookbackCandles = 200;             // Lookback Candles
 input int            InpSwingLeftBars = 1;                 // Swing Left Bars
 input int            InpSwingRightBars = 1;                // Swing Right Bars
-input int            InpVolumeAvgPeriod = 20;              // Volume Average Period (for LHD+V)
-input double         InpVolumeThreshold = 1.5;             // Volume Threshold Multiplier (for LHD+V)
 input int            InpMergeProximity = 200;              // Merge Proximity (Points)
 
 //+------------------------------------------------------------------+
@@ -146,7 +144,7 @@ input bool           InpEnableTimer = true;                // Enable Timer
 input int            InpTimerDuration = 40;                // Timer Duration (Seconds)
 input ENUM_BASE_CORNER InpTimerCorner = CORNER_RIGHT_UPPER;// Timer Anchor Corner
 input int            InpTimerX = 68;                       // Timer X Position
-input int            InpTimerY = 650;                      // Timer Y Position
+input int            InpTimerY = 612;                      // Timer Y Position
 input int            InpTimerFontSize = 15;                // Timer Font Size (Icon + Number)
 input color          InpTimerColorDefault = 4737096;       // Timer Color (Default)
 input color          InpTimerColorArmed = 45055;           // Timer Color (Armed)
@@ -209,7 +207,7 @@ input int            InpButtonFontSize = 8;                // Button Font Size
 input group "=== Display Text Settings ==="
 input ENUM_BASE_CORNER InpTextCorner = CORNER_RIGHT_UPPER; // Text Anchor Corner
 input int            InpTextX = 230;                       // Text X Position
-input int            InpTextY = 655;                       // Text Y Position
+input int            InpTextY = 616;                       // Text Y Position
 input color          InpTextColor = 4737096;               // Text Color
 input int            InpTextFontSize = 8;                  // Text Font Size
 
@@ -222,10 +220,8 @@ string g_btnLow = "FBO_BTN_LOW";
 string g_btnBuyFibo = "FBO_BTN_BUY_FIBO";
 string g_btnSellFibo = "FBO_BTN_SELL_FIBO";
 string g_btnStart = "FBO_BTN_START";
-string g_btnUndo = "FBO_BTN_UNDO";
 string g_btnReset = "FBO_BTN_RESET";
 string g_btnAutoDetect = "FBO_BTN_AUTO_DETECT";
-string g_btnLHDVolume = "FBO_BTN_LHD_VOLUME";
 string g_btnMerge = "FBO_BTN_MERGE";
 // UI Label Names
 string g_lblStopLoss = "FBO_LBL_SL";
@@ -336,12 +332,10 @@ void FindTwoSequentialLines(string &line1, string &line2);
 // *** CHANGED: Removed SetFiboStyle declaration ***
 void ShowAlertMessage(int type);
 // Auto-Detection Functions
-void DetectUnmitigatedLevels(bool useVolumeFilter);
+void DetectUnmitigatedLevels();
 bool IsSwingHigh(int bar);
 bool IsSwingLow(int bar);
 bool IsUnmitigated(double price, bool isHigh, int fromBar);
-double GetVolumeAverage(int period);
-bool HasHighVolume(int bar, double avgVolume);
 void MergeNearbyLevels();
 // Cleanup Functions
 void CleanAllExceptActiveTrade();
@@ -511,20 +505,15 @@ void CreateUIPanel()
    CreateButton(g_btnLow, "Low", col1X, row2Y, w, h, InpPanelCorner);
    CreateButton(g_btnBuyFibo, "B.Fibo", col2X, row2Y, w, h, InpPanelCorner);
 
-   // Row 3: LHD | LHD+V
+   // Row 3: LHD | MRG
    int row3Y = row2Y + h + spacingV;
    CreateButton(g_btnAutoDetect, "LHD", col1X, row3Y, w, h, InpPanelCorner);
-   CreateButton(g_btnLHDVolume, "LHD+V", col2X, row3Y, w, h, InpPanelCorner);
+   CreateButton(g_btnMerge, "MRG", col2X, row3Y, w, h, InpPanelCorner);
 
-   // Row 4: Start | MRG
+   // Row 4: Start | Reset
    int row4Y = row3Y + h + spacingV;
    CreateButton(g_btnStart, "Start", col1X, row4Y, w, h, InpPanelCorner);
-   CreateButton(g_btnMerge, "MRG", col2X, row4Y, w, h, InpPanelCorner);
-
-   // Row 5: Reset | Undo
-   int row5Y = row4Y + h + spacingV;
-   CreateButton(g_btnReset, "Reset", col1X, row5Y, w, h, InpPanelCorner);
-   CreateButton(g_btnUndo, "Undo", col2X, row5Y, w, h, InpPanelCorner);
+   CreateButton(g_btnReset, "Reset", col2X, row4Y, w, h, InpPanelCorner);
 
    ChartRedraw();
 }
@@ -539,8 +528,6 @@ void DeleteUIPanel()
    ObjectDelete(0, g_btnBuyFibo);
    ObjectDelete(0, g_btnSellFibo);
    ObjectDelete(0, g_btnStart);
-   ObjectDelete(0, g_btnUndo);
-   ObjectDelete(0, g_btnLHDVolume);
    ObjectDelete(0, g_btnMerge);
    ObjectDelete(0, g_btnReset);
    ObjectDelete(0, g_btnAutoDetect);
@@ -674,12 +661,6 @@ void HandleButtonClick(string clickedObject)
       if(g_autoModeActive) Alert("This button is disabled in Auto mode");
       else DrawManualFibo(false); // false for Sell
    }
-   // Undo button
-   else if(clickedObject == g_btnUndo)
-   {
-      ObjectSetInteger(0, g_btnUndo, OBJPROP_STATE, false);
-      UndoLastLine();
-   }
    // Reset button
    else if(clickedObject == g_btnReset)
    {
@@ -690,13 +671,7 @@ void HandleButtonClick(string clickedObject)
    else if(clickedObject == g_btnAutoDetect)
    {
       ObjectSetInteger(0, g_btnAutoDetect, OBJPROP_STATE, false);
-      DetectUnmitigatedLevels(false); // Run detection once without volume filter
-   }
-   // Auto-Detect with Volume button (LHD+V)
-   else if(clickedObject == g_btnLHDVolume)
-   {
-      ObjectSetInteger(0, g_btnLHDVolume, OBJPROP_STATE, false);
-      DetectUnmitigatedLevels(true); // Run detection once with volume filter
+      DetectUnmitigatedLevels();
    }
    // Merge button (MRG)
    else if(clickedObject == g_btnMerge)
@@ -800,21 +775,6 @@ void DrawLowLine(double price, datetime time)
    g_lineHistory[g_lineHistoryCount++] = lineName;
 
    ChartRedraw();
-}
-
-//+------------------------------------------------------------------+
-//| Undo Last Line                                                   |
-//+------------------------------------------------------------------+
-void UndoLastLine()
-{
-   if(g_lineHistoryCount > 0)
-   {
-      string lastLine = g_lineHistory[g_lineHistoryCount - 1];
-      ObjectDelete(0, lastLine);
-      g_lineHistoryCount--;
-      ArrayResize(g_lineHistory, g_lineHistoryCount);
-      ChartRedraw();
-   }
 }
 
 //+------------------------------------------------------------------+
@@ -2281,7 +2241,7 @@ string FindNextNearestLine(string lineType, string &usedLines[])
 //+------------------------------------------------------------------+
 //| Auto-Detection: Main Function                                    |
 //+------------------------------------------------------------------+
-void DetectUnmitigatedLevels(bool useVolumeFilter)
+void DetectUnmitigatedLevels()
 {
    // Remove old auto-detected lines
    for(int i = ObjectsTotal(0, 0, OBJ_HLINE) - 1; i >= 0; i--)
@@ -2295,11 +2255,6 @@ void DetectUnmitigatedLevels(bool useVolumeFilter)
    }
 
    int barsToCheck = MathMin(InpLookbackCandles, Bars(_Symbol, _Period) - InpSwingLeftBars - InpSwingRightBars);
-   double avgVolume = 0;
-
-   // Calculate volume average if filter is enabled
-   if(useVolumeFilter)
-      avgVolume = GetVolumeAverage(InpVolumeAvgPeriod);
 
    // Scan for swing highs and lows
    for(int i = InpSwingRightBars; i < barsToCheck; i++)
@@ -2312,9 +2267,6 @@ void DetectUnmitigatedLevels(bool useVolumeFilter)
          // Check if unmitigated (price hasn't crossed back)
          if(IsUnmitigated(swingPrice, true, i))
          {
-            // If volume filter is enabled, check if bar has high volume
-            if(useVolumeFilter && !HasHighVolume(i, avgVolume))
-               continue;
 
             // Draw line
             datetime swingTime = iTime(_Symbol, _Period, i);
@@ -2341,10 +2293,6 @@ void DetectUnmitigatedLevels(bool useVolumeFilter)
          // Check if unmitigated (price hasn't crossed back)
          if(IsUnmitigated(swingPrice, false, i))
          {
-            // If volume filter is enabled, check if bar has high volume
-            if(useVolumeFilter && !HasHighVolume(i, avgVolume))
-               continue;
-
             // Draw line
             datetime swingTime = iTime(_Symbol, _Period, i);
             string lineName = g_autoLinePrefix + "LOW_" + IntegerToString(i);
@@ -2440,37 +2388,6 @@ bool IsUnmitigated(double price, bool isHigh, int fromBar)
    }
 
    return true; // Level is still unmitigated
-}
-
-//+------------------------------------------------------------------+
-//| Calculate Volume Average                                         |
-//+------------------------------------------------------------------+
-double GetVolumeAverage(int period)
-{
-   long volumes[];
-   ArraySetAsSeries(volumes, true);
-
-   if(CopyTickVolume(_Symbol, _Period, 0, period, volumes) <= 0)
-      return 0;
-
-   double sum = 0;
-   for(int i = 0; i < period; i++)
-      sum += (double)volumes[i];
-
-   return sum / period;
-}
-
-//+------------------------------------------------------------------+
-//| Check if bar has high volume (above threshold)                  |
-//+------------------------------------------------------------------+
-bool HasHighVolume(int bar, double avgVolume)
-{
-   if(avgVolume <= 0)
-      return true; // If we can't determine average, accept all
-
-   long volume = iVolume(_Symbol, _Period, bar);
-   double threshold = avgVolume * InpVolumeThreshold;
-   return volume > threshold;
 }
 
 //+------------------------------------------------------------------+
