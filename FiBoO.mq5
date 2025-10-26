@@ -62,7 +62,6 @@ input int            InpMagnetCandleRange = 3;             // Magnet Candle Rang
 //| Input Parameters - Auto Detection (Unmitigated Levels)          |
 //+------------------------------------------------------------------+
 input group "=== Auto-Detection: Unmitigated Levels ==="
-input bool           InpEnableAutoDetection = false;       // Enable Auto-Detection
 input int            InpSwingLeftBars = 1;                 // Swing Left Bars
 input int            InpSwingRightBars = 1;                // Swing Right Bars
 input int            InpLookbackCandles = 200;             // Lookback Candles
@@ -223,7 +222,6 @@ bool g_isStartActive = false;
 bool g_isUIClick = false; // Flag to distinguish UI clicks from chart clicks
 
 // Auto-Detection State
-bool g_autoDetectActive = false;
 datetime g_lastDetectionTime = 0;
 string g_autoLinePrefix = "FBO_AUTO_";
 
@@ -417,16 +415,6 @@ int OnCalculate(const int rates_total,
    if(g_tradeActive && InpEnableTimer)
    {
       UpdateTimer();
-   }
-
-   // Auto-Detection logic
-   static datetime lastBar = 0;
-   datetime currentBar = iTime(_Symbol, _Period, 0);
-
-   if(g_autoDetectActive && currentBar != lastBar)
-   {
-      DetectUnmitigatedLevels();
-      lastBar = currentBar;
    }
 
    return(rates_total);
@@ -666,17 +654,11 @@ void HandleButtonClick(string clickedObject)
       ObjectSetInteger(0, g_btnReset, OBJPROP_STATE, false);
       ResetIndicator();
    }
-   // Auto-Detect button
+   // Auto-Detect button (LHD)
    else if(clickedObject == g_btnAutoDetect)
    {
-      g_autoDetectActive = !g_autoDetectActive;
-      ObjectSetInteger(0, g_btnAutoDetect, OBJPROP_STATE, g_autoDetectActive);
-      UpdateButtonState(g_btnAutoDetect, g_autoDetectActive);
-
-      if(g_autoDetectActive)
-      {
-         DetectUnmitigatedLevels(); // Run detection immediately
-      }
+      ObjectSetInteger(0, g_btnAutoDetect, OBJPROP_STATE, false);
+      DetectUnmitigatedLevels(); // Run detection once
    }
 
    ChartRedraw();
@@ -956,7 +938,6 @@ void ResetIndicator()
    g_isHighActive = false;
    g_isLowActive = false;
    g_autoModeActive = false;
-   g_autoDetectActive = false;
 
    ObjectSetInteger(0, g_btnHigh, OBJPROP_STATE, false);
    UpdateButtonState(g_btnHigh, false);
@@ -966,9 +947,6 @@ void ResetIndicator()
 
    ObjectSetInteger(0, g_btnStart, OBJPROP_STATE, false);
    UpdateButtonState(g_btnStart, false);
-
-   ObjectSetInteger(0, g_btnAutoDetect, OBJPROP_STATE, false);
-   UpdateButtonState(g_btnAutoDetect, false);
 
    ObjectSetInteger(0, g_btnReset, OBJPROP_BGCOLOR, InpButtonColorNormal);
 
@@ -2179,9 +2157,6 @@ string FindNextNearestLine(string lineType, string &usedLines[])
 //+------------------------------------------------------------------+
 void DetectUnmitigatedLevels()
 {
-   if(!InpEnableAutoDetection && !g_autoDetectActive)
-      return;
-
    // Remove old auto-detected lines
    for(int i = ObjectsTotal(0, 0, OBJ_HLINE) - 1; i >= 0; i--)
    {
