@@ -81,6 +81,7 @@ input int            InpLookbackCandles = 200;             // Lookback Candles
 input int            InpSwingLeftBars = 1;                 // Swing Left Bars
 input int            InpSwingRightBars = 1;                // Swing Right Bars
 input int            InpVolumeAvgPeriod = 20;              // Volume Average Period (for LHD+V)
+input double         InpVolumeThreshold = 1.5;             // Volume Threshold Multiplier (for LHD+V)
 input int            InpMergeProximity = 200;              // Merge Proximity (Points)
 
 //+------------------------------------------------------------------+
@@ -2460,7 +2461,7 @@ double GetVolumeAverage(int period)
 }
 
 //+------------------------------------------------------------------+
-//| Check if bar has high volume (above average)                    |
+//| Check if bar has high volume (above threshold)                  |
 //+------------------------------------------------------------------+
 bool HasHighVolume(int bar, double avgVolume)
 {
@@ -2468,7 +2469,8 @@ bool HasHighVolume(int bar, double avgVolume)
       return true; // If we can't determine average, accept all
 
    long volume = iVolume(_Symbol, _Period, bar);
-   return volume > avgVolume;
+   double threshold = avgVolume * InpVolumeThreshold;
+   return volume > threshold;
 }
 
 //+------------------------------------------------------------------+
