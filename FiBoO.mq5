@@ -1059,6 +1059,22 @@ void UpdateCalculatedValues()
 
             IndicatorRelease(atr_handle);
          }
+
+         // Fallback to Candle mode if ATR failed
+         if(avgSize == 0)
+         {
+            double totalSize = 0;
+            int bars = InpATRPeriod;
+
+            for(int i = 1; i <= bars; i++)
+            {
+               double high = iHigh(_Symbol, _Period, i);
+               double low = iLow(_Symbol, _Period, i);
+               totalSize += (high - low);
+            }
+
+            avgSize = totalSize / bars;
+         }
       }
 
       g_calculatedSL = (int)MathRound((avgSize / point) * InpSLMultiplier);
@@ -2482,35 +2498,40 @@ bool HasConsumedLevelAfter(int barIndex)
       return true;
 
    double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+   bool foundAnySwing = false;
 
    // Check bars AFTER this bar formed (from barIndex-1 down to 0)
-   for(int i = barIndex - 1; i >= 0; i--)
+   for(int i = barIndex - 1; i >= MathMax(0, barIndex - 100); i--)
    {
       // Check if this bar i was a swing high or low
-      bool isSwing = IsSwingHigh(i) || IsSwingLow(i);
-
-      if(isSwing)
+      if(IsSwingHigh(i))
       {
-         double levelPrice = IsSwingHigh(i) ? iHigh(_Symbol, _Period, i) : iLow(_Symbol, _Period, i);
-         bool isHigh = IsSwingHigh(i);
+         foundAnySwing = true;
+         double levelPrice = iHigh(_Symbol, _Period, i);
 
-         // Check if this level was consumed (mitigated) after it formed
+         // Check if this high was consumed after it formed
          for(int j = i - 1; j >= 0; j--)
          {
-            if(isHigh)
-            {
-               if(iHigh(_Symbol, _Period, j) > levelPrice + point)
-                  return true; // Found a consumed high after barIndex
-            }
-            else
-            {
-               if(iLow(_Symbol, _Period, j) < levelPrice - point)
-                  return true; // Found a consumed low after barIndex
-            }
+            if(iHigh(_Symbol, _Period, j) > levelPrice + point)
+               return true; // Found a consumed high after barIndex
+         }
+      }
+
+      if(IsSwingLow(i))
+      {
+         foundAnySwing = true;
+         double levelPrice = iLow(_Symbol, _Period, i);
+
+         // Check if this low was consumed after it formed
+         for(int j = i - 1; j >= 0; j--)
+         {
+            if(iLow(_Symbol, _Period, j) < levelPrice - point)
+               return true; // Found a consumed low after barIndex
          }
       }
    }
 
+   // If no swings found after this bar, return false
    return false;
 }
 
