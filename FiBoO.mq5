@@ -1,12 +1,10 @@
 ﻿//+------------------------------------------------------------------+
 //|                                                   FBO_Helper.mq5 |
 //|                                      Fake Breakout Helper v2.04  |
-//|                    (Logic Fix: Removed Active/Inactive Fibo Style) |
-//|
 //+------------------------------------------------------------------+
 #property copyright "FBO Helper Indicator"
 #property link      ""
-#property version   "2.04" // Removed Active/Inactive Fibo style logic
+#property version   "2.04"
 #property indicator_chart_window
 #property indicator_plots 0
 
@@ -777,14 +775,12 @@ void DrawLowLine(double price, datetime time)
 //+------------------------------------------------------------------+
 void CleanAllLines()
 {
-   // Loop backwards as we are deleting all HLINE objects
    for(int i = ObjectsTotal(0, 0, OBJ_HLINE) - 1; i >= 0; i--)
    {
       string name = ObjectName(0, i, 0, OBJ_HLINE);
       ObjectDelete(0, name);
    }
    
-   // Also clear our internal history
    ArrayResize(g_lineHistory, 0);
    g_lineHistoryCount = 0;
    ChartRedraw();
@@ -795,14 +791,12 @@ void CleanAllLines()
 //+------------------------------------------------------------------+
 void CleanAllBoxes()
 {
-   // Loop backwards as we are deleting all RECTANGLE objects
    for(int i = ObjectsTotal(0, 0, OBJ_RECTANGLE) - 1; i >= 0; i--)
    {
       string name = ObjectName(0, i, 0, OBJ_RECTANGLE);
       ObjectDelete(0, name); 
    }
    
-   // Also clear our internal history
    ArrayResize(g_breakoutHistory, 0);
    g_lastHighlightBoxName = "";
    ChartRedraw();
@@ -813,14 +807,12 @@ void CleanAllBoxes()
 //+------------------------------------------------------------------+
 void CleanAllFibos()
 {
-   // Loop backwards as we are deleting all FIBO objects
    for(int i = ObjectsTotal(0, 0, OBJ_FIBO) - 1; i >= 0; i--)
    {
       string name = ObjectName(0, i, 0, OBJ_FIBO);
       ObjectDelete(0, name);
    }
    
-   // Also clear our internal history
    ResetManualFiboTracking();
    ChartRedraw();
 }
