@@ -74,26 +74,14 @@ input group "=== Line Drawing Settings ==="
 input int            InpMagnetCandleRange = 3;             // Magnet Candle Range
 
 //+------------------------------------------------------------------+
-//| Distance Mode Enum                                               |
-//+------------------------------------------------------------------+
-enum ENUM_DISTANCE_MODE
-{
-   DISTANCE_MODE_FIXED,      // Fixed Points
-   DISTANCE_MODE_ATR         // ATR-Based
-};
-
-//+------------------------------------------------------------------+
 //| Input Parameters - Auto Detection (Unmitigated Levels)          |
 //+------------------------------------------------------------------+
 input group "=== Auto-Detection: Unmitigated Levels ==="
 input int            InpLookbackCandles = 200;             // Lookback Candles
-input int            InpSwingLeftBars = 1;                 // Candle Count: Swing Left Bars
-input int            InpSwingRightBars = 1;                // Candle Count: Swing Right Bars
-input ENUM_DISTANCE_MODE InpDistanceMode = DISTANCE_MODE_FIXED; // Distance Mode
-input int            InpMinSwingDistance = 1;              // Min Distance (Points or ATR Period)
-input double         InpSwingATRMultiplier = 1.0;          // Multiplier: ATR Multiplier for Distance
-input int            InpVolumeAvgPeriod = 20;              // Volume: Average Period (for LHD+V)
-input int            InpMergeProximity = 200;              // Merge: Proximity (Points)
+input int            InpSwingLeftBars = 1;                 // Swing Left Bars
+input int            InpSwingRightBars = 1;                // Swing Right Bars
+input int            InpVolumeAvgPeriod = 20;              // Volume Average Period (for LHD+V)
+input int            InpMergeProximity = 200;              // Merge Proximity (Points)
 
 //+------------------------------------------------------------------+
 //| Input Parameters - Fibonacci Settings                            |
@@ -351,7 +339,6 @@ void DetectUnmitigatedLevels(bool useVolumeFilter);
 bool IsSwingHigh(int bar);
 bool IsSwingLow(int bar);
 bool IsUnmitigated(double price, bool isHigh, int fromBar);
-double GetMinSwingDistance();
 double GetVolumeAverage(int period);
 bool HasHighVolume(int bar, double avgVolume);
 void MergeNearbyLevels();
@@ -1081,18 +1068,42 @@ void UpdateCalculatedValues()
    }
    else // CALC_AUTO
    {
-      double totalSize = 0;
-      int bars = InpATRPeriod;
+      double avgSize = 0;
+      double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
 
-      for(int i = 1; i <= bars; i++)
+      if(InpSLAutoMode == SL_AUTO_MODE_CANDLE)
       {
-         double high = iHigh(_Symbol, _Period, i);
-         double low = iLow(_Symbol, _Period, i);
-         totalSize += (high - low);
+         // Based on Candle: Average High-Low range
+         double totalSize = 0;
+         int bars = InpATRPeriod;
+
+         for(int i = 1; i <= bars; i++)
+         {
+            double high = iHigh(_Symbol, _Period, i);
+            double low = iLow(_Symbol, _Period, i);
+            totalSize += (high - low);
+         }
+
+         avgSize = totalSize / bars;
+      }
+      else // SL_AUTO_MODE_ATR
+      {
+         // Based on ATR
+         int atr_handle = iATR(_Symbol, _Period, InpATRPeriod);
+         if(atr_handle != INVALID_HANDLE)
+         {
+            double atr_buffer[];
+            ArraySetAsSeries(atr_buffer, true);
+
+            if(CopyBuffer(atr_handle, 0, 0, 1, atr_buffer) > 0)
+            {
+               avgSize = atr_buffer[0];
+            }
+
+            IndicatorRelease(atr_handle);
+         }
       }
 
-      double avgSize = totalSize / bars;
-      double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
       g_calculatedSL = (int)MathRound((avgSize / point) * InpSLMultiplier);
       g_calculatedBreakout = (int)MathRound(g_calculatedSL / 3.0);
    }
@@ -2283,7 +2294,6 @@ void DetectUnmitigatedLevels(bool useVolumeFilter)
    }
 
    int barsToCheck = MathMin(InpLookbackCandles, Bars(_Symbol, _Period) - InpSwingLeftBars - InpSwingRightBars);
-   double minDistance = GetMinSwingDistance();
    double avgVolume = 0;
 
    // Calculate volume average if filter is enabled
@@ -2429,38 +2439,6 @@ bool IsUnmitigated(double price, bool isHigh, int fromBar)
    }
 
    return true; // Level is still unmitigated
-}
-
-//+------------------------------------------------------------------+
-//| Get Minimum Swing Distance (Fixed or ATR-based)                 |
-//+------------------------------------------------------------------+
-double GetMinSwingDistance()
-{
-   if(InpDistanceMode == DISTANCE_MODE_FIXED)
-   {
-      // Fixed point-based distance
-      return InpMinSwingDistance * SymbolInfoDouble(_Symbol, SYMBOL_POINT);
-   }
-   else
-   {
-      // ATR-based distance
-      int atr_handle = iATR(_Symbol, _Period, InpMinSwingDistance);
-      if(atr_handle == INVALID_HANDLE)
-         return 0;
-
-      double atr_buffer[];
-      ArraySetAsSeries(atr_buffer, true);
-
-      if(CopyBuffer(atr_handle, 0, 0, 1, atr_buffer) <= 0)
-      {
-         IndicatorRelease(atr_handle);
-         return 0;
-      }
-
-      double distance = atr_buffer[0] * InpSwingATRMultiplier;
-      IndicatorRelease(atr_handle);
-      return distance;
-   }
 }
 
 //+------------------------------------------------------------------+
